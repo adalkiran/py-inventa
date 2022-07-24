@@ -1,0 +1,38 @@
+# See: https://packaging.python.org/en/latest/tutorials/packaging-projects/
+# See: https://pypi.org/classifiers/
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inventa"
+dynamic = ["version"]
+authors = [
+  { name="Adil Alper DALKIRAN" },
+]
+description = "A package for microservice RPC ecosystem via Redis"
+readme = "README.md"
+license = { text="Apache 2.0" }
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Distributed Computing",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "redis>=4.3.4",
+    "async-timeout>=4.0.2",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/adalkiran/py-inventa"
+"Source" = "https://github.com/adalkiran/py-inventa"
+"Bug Tracker" = "https://github.com/adalkiran/py-inventa/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "inventa.__version__"}
