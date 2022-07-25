@@ -1,8 +1,8 @@
-# **Inventa for Go**
+# **Inventa for Python**
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white&style=flat-square)](https://www.linkedin.com/in/alper-dalkiran/)
 [![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white&style=flat-square)](https://twitter.com/aalperdalkiran)
-![HitCount](https://hits.dwyl.com/adalkiran/go-inventa.svg?style=flat-square)
+![HitCount](https://hits.dwyl.com/adalkiran/py-inventa.svg?style=flat-square)
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 
 A Python library for microservice registry and executing RPC (Remote Procedure Call) over Redis.
@@ -41,4 +41,4 @@ You can find Go implementation of Inventa on [Inventa for Go (go-inventa)](https
 
 ## **LICENSE**
 
-Inventa for Go is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
+Inventa for Python is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
