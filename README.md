@@ -37,7 +37,7 @@ pip install inventa
 TODO: Coming soon, in progress...
 ## **OTHER IMPLEMENTATIONS**
 
-You can find Python implementation of Inventa on [Inventa for Go (go-inventa)](https://github.com/adalkiran/go-inventa).
+You can find Go implementation of Inventa on [Inventa for Go (go-inventa)](https://github.com/adalkiran/go-inventa).
 
 ## **LICENSE**
 
