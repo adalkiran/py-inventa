@@ -24,4 +24,4 @@ __all__ = [
     "EndlessTimerTask"
     ]
 
-__version__ = "0.0.a1"
+__version__ = "0.0.a2"

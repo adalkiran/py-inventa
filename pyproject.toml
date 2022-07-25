@@ -10,7 +10,7 @@ dynamic = ["version"]
 authors = [
   { name="Adil Alper DALKIRAN" },
 ]
-description = "A package for microservice RPC ecosystem via Redis"
+description = "A Python library for microservice registry and executing RPC (Remote Procedure Call) over Redis"
 readme = "README.md"
 license = { text="Apache 2.0" }
 requires-python = ">=3.7"
