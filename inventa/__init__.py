@@ -16,12 +16,14 @@
 from .inventa import Inventa, InventaRole
 from .service_descriptor import ServiceDescriptor
 from .endless_timer_task import EndlessTimerTask
+from .rpc_call_request import RPCCallRequest
  
 __all__ = [
     "Inventa", 
     "InventaRole",
     "ServiceDescriptor"
     "EndlessTimerTask"
+    "RPCCallRequest"
     ]
 
-__version__ = "0.0.a3"
+__version__ = "0.0.a4"
