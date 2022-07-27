@@ -15,23 +15,27 @@
 
 import string
 from .service_descriptor import ServiceDescriptor
+from .utils import encodeContentArray, decodeContentArray
 
 class RPCCallRequest:
-    def __init__(self, CallId: string, FromService: ServiceDescriptor, Method: string, Args: string):
+    def __init__(self, CallId: string, FromService: ServiceDescriptor, Method: string, Args: list[bytes]):
         self.CallId = CallId
         self.FromService = FromService
         self.Method = Method
         self.Args = Args
 
-    def Encode(self) -> string:
-        return "req|" + self.CallId + "|" + self.FromService.Encode() + "|" + self.Method + "|" + self.Args
+    def Encode(self) -> bytes:
+        for i, item in enumerate(self.Args):
+            if item and not type(item) is bytes:
+                self.Args[i] = item.encode()
+        return ("req|" + self.CallId + "|" + self.FromService.Encode() + "|" + self.Method + "|").encode() + encodeContentArray(self.Args)
         
-    def Decode(self, raw: string):
-        rawParts = raw.split("|")
-        self.CallId = rawParts[0]
-        self.FromService = ServiceDescriptor.ParseServiceFullId(rawParts[1])
-        self.Method = rawParts[2]
-        self.Args = "|".join(rawParts[3:])
+    def Decode(self, raw: bytes):
+        rawParts = raw.split(b"|")
+        self.CallId = rawParts[0].decode()
+        self.FromService = ServiceDescriptor.ParseServiceFullId(rawParts[1].decode())
+        self.Method = rawParts[2].decode()
+        self.Args = decodeContentArray(rawParts[3])
 
-    def ErrorResponse(self, e: Exception) -> string:
-        return "error|{0}".format(e)
+    def ErrorResponse(self, e: Exception) -> list[bytes]:
+        return [b"error", "{0}".format(e).encode()]

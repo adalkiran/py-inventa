@@ -37,12 +37,14 @@ class InventaRole(Enum):
 
 class Inventa:
     def __init__(self, hostname: string, port: int, password: string, service_type: string, servicee_id: string, inventa_role: InventaRole, rpc_command_fn_registry):
-        self.Client = aioredis.from_url(f"redis://{hostname}:{port}", password=password)
+        redis_url = f"redis://{hostname}:{port}"
+        self.Client = aioredis.from_url(redis_url, password=password, socket_connect_timeout=10)
         self.SelfDescriptor = ServiceDescriptor(service_type, servicee_id)
         self.InventaRole = inventa_role
         self.RPCCommandFnRegistry = rpc_command_fn_registry
         self.OrchestratorDescriptor = None
         self.IsOrchestratorActive = False
+        self.IsRegistered = False
 
         self.rpcInternalCommandFnRegistry = {
             "register":           self.rpcInternalCommandRegister,
@@ -59,6 +61,23 @@ class Inventa:
         self.OnServiceRegistering = None
         self.OnServiceUnregistering = None
 
+    def Start(self):
+        loop = asyncio.get_event_loop()
+        pingResult = loop.run_until_complete(self.pingRedis())
+        if not pingResult:
+            raise Exception(f"Cannot connect to redis: {redis_url}")
+        self.run(loop)
+
+
+    async def pingRedis(self) -> bool:
+        for i in range(1, 10):
+            try:
+                if await self.Client.ping():
+                    return True
+            except:
+                await asyncio.sleep(1)
+        return False
+
 
     def run(self, event_loop: asyncio.AbstractEventLoop):
         event_loop.create_task(self.runRawQueueProcessor())
@@ -70,19 +89,19 @@ class Inventa:
         self._CheckRegisteredServices = EndlessTimerTask(4, self.checkRegisteredServices)
         event_loop.create_task(self._CheckRegisteredServices.start())
         
-    async def CallSync(self, serviceChannel: string, method: string, args: string, timeout: int) -> string:
+    async def CallSync(self, serviceChannel: string, method: string, args: list[bytes], timeout: int) -> list[bytes]:
         req = self.newRPCCallRequest(method, args)
         await self.Client.publish("ch:" + serviceChannel, req.Encode())
+
         timeout_time = datetime.utcnow() + timedelta(milliseconds=timeout)
         while datetime.utcnow() < timeout_time:
             try:
                 async with async_timeout.timeout(timeout/1000):
                     resp = await self.rpcResponseQueue.get()
                     if resp and resp.CallId == req.CallId:
-                        dataParts = resp.Data.split("|")
-                        if dataParts[0] == "error":
-                            if len(dataParts) > 1:
-                                raise Exception(dataParts[1])
+                        if resp.Data[0] == "error":
+                            if len(resp.Data) > 1:
+                                raise Exception(resp.Data[1])
                             raise Exception("undescribed error")
                         await asyncio.sleep(.01)
                         return resp.Data
@@ -97,8 +116,8 @@ class Inventa:
     async def runRawQueueProcessor(self):
         while True:
             rawMsg = await self.rpcRawQueue.get()
-            rawMsgParts = rawMsg.split("|")
-            rawMsgType = rawMsgParts[0]
+            rawMsgParts = rawMsg.split(b"|")
+            rawMsgType = rawMsgParts[0].decode("UTF-8")
             if rawMsgType == "req":
                 req = RPCCallRequest("", 0, "", "")
                 req.Decode(rawMsg[len(rawMsgType)+1:])
@@ -125,6 +144,9 @@ class Inventa:
                 cmdResult = req.ErrorResponse(Exception(f"unknown command type: {req.Method}"))
             else:
                 cmdResult = rpcCommandFn(req)
+                if not isinstance(cmdResult, list):
+                    print(f"Error: command \"{req.Method}\" should return a list, it returned: {cmdResult}\n")
+                    cmdResult = req.ErrorResponse(Exception(f"command \"{req.Method}\" should return a list, it returned: {cmdResult}"))
             resp = self.newRPCCallResponse(req, cmdResult)
             await self.Client.publish("ch:" + req.FromService.Encode(), resp.Encode())
             self.rpcRequestQueue.task_done()
@@ -134,7 +156,7 @@ class Inventa:
     async def runSubscribeInternal(self, pubSubChannelName: string, messageQueue: Queue):
         async def handle_msg(message):
             if message["type"] == "message":
-                await messageQueue.put(message["data"].decode('UTF-8'))
+                await messageQueue.put(message["data"])
         
         async def reader(channel: aioredis.client.PubSub):
             while True:
@@ -167,13 +189,14 @@ class Inventa:
             tryCount = 1
         self.OrchestratorDescriptor = orchestratorDescriptor
         for i in range(1, tryCount):
-            print(f"Trying to register to {orchestratorFullId}...")
+            print(datetime.utcnow(), f"Trying to register to {orchestratorFullId}...")
             try:
-                await self.CallSync(orchestratorFullId, "register", self.SelfDescriptor.Encode(), timeout)
+                await self.CallSync(orchestratorFullId, "register", [self.SelfDescriptor.Encode()], timeout)
             except Exception as e:
                 lastErr = e
-                print(f"Error while registering: {e}. Remaining try count: {tryCount-i}")
+                print(datetime.utcnow(), f"Error while registering: {e}. Remaining try count: {tryCount-i}")
                 continue
+            self.IsRegistered = True
             self.IsOrchestratorActive = True
             await self.setSelfActive()
             return
@@ -181,18 +204,20 @@ class Inventa:
             raise lastErr
 
 
-    def newRPCCallRequest(self, method: string, args: string) -> RPCCallRequest:
+    def newRPCCallRequest(self, method: string, args: list[bytes]) -> RPCCallRequest:
         return RPCCallRequest(randStringRunes(5) + "-" + str(int(time.time())),
             self.SelfDescriptor,
             method,
             args)
 
-    def newRPCCallResponse(self, req: RPCCallRequest, data: string) -> RPCCallResponse:
+    def newRPCCallResponse(self, req: RPCCallRequest, data: list[bytes]) -> RPCCallResponse:
         return RPCCallResponse(req.CallId,
             self.SelfDescriptor,
             data)
 
     async def setSelfActive(self):
+        if self.InventaRole != InventaRole.Orchestrator and not self.IsRegistered:
+            return
         try:
             await self.Client.setex(self.SelfDescriptor.Encode(), timedelta(milliseconds=5000), 1)
         except Exception as e:
@@ -220,10 +245,10 @@ class Inventa:
                 self.IsOrchestratorActive = True
                 print(f"The orchestrator service {self.OrchestratorDescriptor.Encode()} is alive again.")
 
-    def rpcInternalCommandRegister(self, req: RPCCallRequest) -> string:
-        serviceDescriptor = ServiceDescriptor.ParseServiceFullId(req.Args)
+    def rpcInternalCommandRegister(self, req: RPCCallRequest) -> list[bytes]:
+        serviceDescriptor = ServiceDescriptor.ParseServiceFullId(req.Args.decode())
         if self.SelfDescriptor.Encode() == serviceDescriptor.Encode():
-            return "ignored-self"
+            return [b"ignored-self"]
         if not self.OnServiceRegistering:
             err = f"the orchestrator service \"{self.SelfDescriptor.Encode()}\" has not implemented \"OnServiceRegistering\" event function"
             print(f"Error on rpcInternalCommandRegister: {err}")
@@ -233,15 +258,15 @@ class Inventa:
         except Exception as e:
             return req.ErrorResponse(e)
         self.registeredServices[serviceDescriptor.Encode()] = True
-        return "registered"
+        return [b"registered"]
 
 
-    def rpcInternalCommandOrchestratorAlive(self, req: RPCCallRequest) -> string:
+    def rpcInternalCommandOrchestratorAlive(self, req: RPCCallRequest) -> list[bytes]:
         if self.InventaRole != InventaRole.Service:
-            return "ignored-not-service"
-        orchestratorDescriptor = ServiceDescriptor.ParseServiceFullId(req.Args)
+            return [b"ignored-not-service"]
+        orchestratorDescriptor = ServiceDescriptor.ParseServiceFullId(req.Args[0].decode())
         if orchestratorDescriptor.Encode() != self.OrchestratorDescriptor.Encode():
-            return "ignored-unknown-source"
+            return [b"ignored-unknown-source"]
         self.IsOrchestratorActive = True
         print(f"The orchestrator service {self.OrchestratorDescriptor.Encode()} is alive again.")
-        return "ok"
+        return [b"ok"]

@@ -15,18 +15,22 @@
 
 import string
 from .service_descriptor import ServiceDescriptor
+from .utils import encodeContentArray, decodeContentArray
 
 class RPCCallResponse:
-    def __init__(self, CallId: string, FromService: ServiceDescriptor, Data: string):
+    def __init__(self, CallId: string, FromService: ServiceDescriptor, Data: list[bytes]):
         self.CallId = CallId
         self.FromService = FromService
         self.Data = Data
 
-    def Encode(self) -> string:
-        return "resp|" + self.CallId + "|" + self.FromService.Encode() + "|" + self.Data
+    def Encode(self) -> bytes:
+        for i, item in enumerate(self.Data):
+            if item and not type(item) is bytes:
+                self.Data[i] = item.encode()
+        return ("resp|" + self.CallId + "|" + self.FromService.Encode() + "|").encode() + encodeContentArray(self.Data)
         
-    def Decode(self, raw: string):
-        rawParts = raw.split("|")
-        self.CallId = rawParts[0]
-        self.FromService = ServiceDescriptor.ParseServiceFullId(rawParts[1])
-        self.Data = "|".join(rawParts[2:])
+    def Decode(self, raw: bytes):
+        rawParts = raw.split(b"|")
+        self.CallId = rawParts[0].decode()
+        self.FromService = ServiceDescriptor.ParseServiceFullId(rawParts[1].decode())
+        self.Data = decodeContentArray(rawParts[2])
