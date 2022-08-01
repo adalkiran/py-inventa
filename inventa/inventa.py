@@ -37,8 +37,8 @@ class InventaRole(Enum):
 
 class Inventa:
     def __init__(self, hostname: string, port: int, password: string, service_type: string, servicee_id: string, inventa_role: InventaRole, rpc_command_fn_registry):
-        redis_url = f"redis://{hostname}:{port}"
-        self.Client = aioredis.from_url(redis_url, password=password, socket_connect_timeout=10)
+        self.redis_url = f"redis://{hostname}:{port}"
+        self.Client = aioredis.from_url(self.redis_url, password=password, socket_connect_timeout=10)
         self.SelfDescriptor = ServiceDescriptor(service_type, servicee_id)
         self.InventaRole = inventa_role
         self.RPCCommandFnRegistry = rpc_command_fn_registry
@@ -63,20 +63,22 @@ class Inventa:
 
     def Start(self):
         loop = asyncio.get_event_loop()
-        pingResult = loop.run_until_complete(self.pingRedis())
-        if not pingResult:
-            raise Exception(f"Cannot connect to redis: {redis_url}")
+        pingError = loop.run_until_complete(self.pingRedis())
+        if pingError:
+            raise Exception(f"Cannot connect to redis: {self.redis_url}, error: {pingError}")
         self.run(loop)
 
 
-    async def pingRedis(self) -> bool:
+    async def pingRedis(self) -> Exception:
+        last_err = None
         for i in range(1, 10):
             try:
                 if await self.Client.ping():
-                    return True
-            except:
+                    return None
+            except Exception as e:
+                last_err = e
                 await asyncio.sleep(1)
-        return False
+        return last_err
 
 
     def run(self, event_loop: asyncio.AbstractEventLoop):
