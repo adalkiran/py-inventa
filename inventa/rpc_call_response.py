@@ -18,7 +18,7 @@ from .service_descriptor import ServiceDescriptor
 from .utils import encodeContentArray, decodeContentArray
 
 class RPCCallResponse:
-    def __init__(self, CallId: string, FromService: ServiceDescriptor, Data: list[bytes]):
+    def __init__(self, CallId: string, FromService: ServiceDescriptor, Data: list):
         self.CallId = CallId
         self.FromService = FromService
         self.Data = Data

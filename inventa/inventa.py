@@ -91,7 +91,7 @@ class Inventa:
         self._CheckRegisteredServices = EndlessTimerTask(4, self.checkRegisteredServices)
         event_loop.create_task(self._CheckRegisteredServices.start())
         
-    async def CallSync(self, serviceChannel: string, method: string, args: list[bytes], timeout: int) -> list[bytes]:
+    async def CallSync(self, serviceChannel: string, method: string, args: list, timeout: int) -> list:
         req = self.newRPCCallRequest(method, args)
         await self.Client.publish("ch:" + serviceChannel, req.Encode())
 
@@ -206,13 +206,13 @@ class Inventa:
             raise lastErr
 
 
-    def newRPCCallRequest(self, method: string, args: list[bytes]) -> RPCCallRequest:
+    def newRPCCallRequest(self, method: string, args: list) -> RPCCallRequest:
         return RPCCallRequest(randStringRunes(5) + "-" + str(int(time.time())),
             self.SelfDescriptor,
             method,
             args)
 
-    def newRPCCallResponse(self, req: RPCCallRequest, data: list[bytes]) -> RPCCallResponse:
+    def newRPCCallResponse(self, req: RPCCallRequest, data: list) -> RPCCallResponse:
         return RPCCallResponse(req.CallId,
             self.SelfDescriptor,
             data)
@@ -247,7 +247,7 @@ class Inventa:
                 self.IsOrchestratorActive = True
                 print(f"The orchestrator service {self.OrchestratorDescriptor.Encode()} is alive again.")
 
-    def rpcInternalCommandRegister(self, req: RPCCallRequest) -> list[bytes]:
+    def rpcInternalCommandRegister(self, req: RPCCallRequest) -> list:
         serviceDescriptor = ServiceDescriptor.ParseServiceFullId(req.Args.decode())
         if self.SelfDescriptor.Encode() == serviceDescriptor.Encode():
             return [b"ignored-self"]
@@ -263,7 +263,7 @@ class Inventa:
         return [b"registered"]
 
 
-    def rpcInternalCommandOrchestratorAlive(self, req: RPCCallRequest) -> list[bytes]:
+    def rpcInternalCommandOrchestratorAlive(self, req: RPCCallRequest) -> list:
         if self.InventaRole != InventaRole.Service:
             return [b"ignored-not-service"]
         orchestratorDescriptor = ServiceDescriptor.ParseServiceFullId(req.Args[0].decode())

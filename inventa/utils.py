@@ -26,14 +26,14 @@ def randStringRunes(n: int) -> string:
     letters = string.ascii_lowercase + string.ascii_uppercase
     return "".join(random.choice(letters) for i in range(n))
 
-def encodeContentArray(arr: list[bytes]) -> bytes:
+def encodeContentArray(arr: list) -> bytes:
 	for i, s in enumerate(arr):
 		for key, val in contentReservedCharMap.items():
 			s = s.replace(key, val)
 		arr[i] = s
 	return b"!".join(arr)
 
-def decodeContentArray(encodedStr: bytes) -> list[bytes]:
+def decodeContentArray(encodedStr: bytes) -> list:
 	arr = encodedStr.split(b"!")
 	for i, s in enumerate(arr):
 		for key, val in contentReservedCharMap.items():
