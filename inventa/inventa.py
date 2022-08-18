@@ -38,7 +38,7 @@ class InventaRole(Enum):
 class Inventa:
     def __init__(self, hostname: string, port: int, password: string, service_type: string, servicee_id: string, inventa_role: InventaRole, rpc_command_fn_registry):
         self.redis_url = f"redis://{hostname}:{port}"
-        self.Client = aioredis.from_url(self.redis_url, password=password, socket_connect_timeout=10)
+        self.Client = aioredis.from_url(self.redis_url, password=password, socket_connect_timeout=10, redis_connect_func=self.onRedisConnect)
         self.SelfDescriptor = ServiceDescriptor(service_type, servicee_id)
         self.InventaRole = inventa_role
         self.RPCCommandFnRegistry = rpc_command_fn_registry
@@ -68,6 +68,12 @@ class Inventa:
             raise Exception(f"Cannot connect to redis: {self.redis_url}, error: {pingError}")
         self.run(loop)
 
+
+    async def onRedisConnect(self, conn):
+        await conn.on_connect()
+        if self.IsRegistered:
+            await self.setSelfActive()
+            await self.checkRegisteredServices()
 
     async def pingRedis(self) -> Exception:
         last_err = None
