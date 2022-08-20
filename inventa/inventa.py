@@ -74,6 +74,7 @@ class Inventa:
         if not await conn.can_read():
             return
         if self.IsRegistered:
+            await self.pingRedis()
             await self.setSelfActive()
             await self.checkRegisteredServices()
 
@@ -178,6 +179,22 @@ class Inventa:
                         await asyncio.sleep(.01)
                 except asyncio.TimeoutError:
                     pass
+                except aioredis.ConnectionError:
+                    # See: https://lightrun.com/answers/redis-redis-py-asyncio-pubsub-does-not-automatically-reconnect
+                    errorPrinted = False
+                    while not channel.connection.is_connected:
+                        try:
+                            if not errorPrinted:
+                                print(f"Redis connection reset. Resubscribing to channels {list(channel.channels.keys())}")
+                            await channel.connect()
+                            print(f"Redis connection was established again. Resubscribed to channels {list(channel.channels.keys())}")
+                        except Exception as e:
+                            if not errorPrinted:
+                                print(f"Error: {e}")
+                                errorPrinted = True
+                            await asyncio.sleep(.1)
+
+
 
         # See: https://aioredis.readthedocs.io/en/latest/examples/#pubsub
         pubsub = self.Client.pubsub()
@@ -229,6 +246,7 @@ class Inventa:
         if self.InventaRole != InventaRole.Orchestrator and not self.IsRegistered:
             return
         try:
+            await self.pingRedis()
             await self.Client.setex(self.SelfDescriptor.Encode(), timedelta(milliseconds=5000), 1)
         except Exception as e:
             print("cannot set service status on redis: ", e)
