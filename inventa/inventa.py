@@ -71,7 +71,7 @@ class Inventa:
 
     async def onRedisConnect(self, conn):
         await conn.on_connect()
-        if not await conn.can_read():
+        if not await conn.can_read_destructive():
             return
         if self.IsRegistered:
             await self.pingRedis()

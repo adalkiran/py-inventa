@@ -26,4 +26,4 @@ __all__ = [
     "RPCCallRequest"
     ]
 
-__version__ = "0.0.a14"
+__version__ = "0.0.a15"
